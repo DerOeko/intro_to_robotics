@@ -40,18 +40,18 @@ def follow_line(color_sensor, left_motor, right_motor):
     """
     A very simple line follower that should be improved.
     """
+    
     color_sensor.image = color_sensor._get_image_sensor()
-
+    show_image(color_sensor.image)
     reflection = color_sensor.reflection()
-    print(reflection)
     threshold = 40  # Midpoint between black and white
 
     if reflection < threshold:
-        left_motor.run(speed=-1)
-        right_motor.run(speed=4)
+        left_motor.run(speed=0) 
+        right_motor.run(speed=0)
     else:
-        left_motor.run(speed=4)
-        right_motor.run(speed=-1)
+        left_motor.run(speed=0)
+        right_motor.run(speed=0)
 
 
 # MAIN CONTROL LOOP
@@ -62,12 +62,16 @@ if clientID != -1:
     left_motor = Motor(motor_port='A', direction=Direction.CLOCKWISE, clientID=clientID)
     right_motor = Motor(motor_port='B', direction=Direction.CLOCKWISE, clientID=clientID)
     color_sensor = ColorSensor(clientID=clientID)
-
+    returnCode, cameraHandle = sim.simxGetObjectHandle(clientID, "LineTracer/Vision_sensor", sim.simx_opmode_blocking)
     while True:
         # End connection
+        follow_line(color_sensor, left_motor, right_motor)
+        left_motor.run(speed=0)
+        right_motor.run(speed=0)
+        print(color_sensor.image)
+        print(color_sensor.reflection())
+        print(color_sensor.ambient())
 
-        left_motor.run(speed=5)
-        right_motor.run(speed=5)
 
 else:
     print('Failed connecting to remote API server')
