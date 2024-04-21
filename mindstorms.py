@@ -150,6 +150,12 @@ class ColorSensor(CoppeliaComponent):
         """
         return np.mean(self.image[:, :, 0] / 255 * 100)
 
+    def side_reflection(self, left):
+        if left:
+            return np.mean(self.image[:, :9, 0] / 255 * 100)
+        else:
+            return np.mean(self.image[:, 9:, 0] / 255 * 100)
+        
     def rgb(self):
         """
         Measure the reflection of a surface using red, green, and blue channels of the image.
