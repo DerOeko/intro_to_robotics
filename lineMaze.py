@@ -2,7 +2,7 @@ import sim
 import matplotlib.pyplot as plt
 from mindstorms import Motor, Direction, ColorSensor
 import numpy as np
-import cv2
+import pandas as pd
 
 sim.simxFinish(-1)
 clientID = sim.simxStart('127.0.0.1', 19999, True, True, 5000, 5)
@@ -57,7 +57,20 @@ def is_blue_detected(color_sensor):
     blue_intensity = blue / (red + green)
 
     return blue_intensity > blue_ratio_threshold
-
+def log_error(error,KP,KD,KI):
+    """
+    Log the error and the control values to a dataframe
+    """
+    #concat the new data to the dataframe
+    global dataframe
+    dataframe = pd.concat([dataframe, pd.DataFrame({'error': [error],
+                                                    'KP': [KP],
+                                                    'KD': [KD],
+                                                    'KI': [KI]})],
+                          ignore_index=True)
+    #write to file,overwrite
+    dataframe.to_csv('error.csv', index=False)
+    
 def follow_line(color_sensor, left_motor, right_motor, base_speed, integral, prev_error, KP, KD, KI):
     """
     A very simple line follower that should be improved.
@@ -71,6 +84,7 @@ def follow_line(color_sensor, left_motor, right_motor, base_speed, integral, pre
     
     threshold = 50
     error = abs(threshold - reflection)
+    log_error(error,KP,KD,KI)
     derivative = error - prev_error
     prev_error = error
     integral += error
@@ -89,7 +103,7 @@ def follow_line(color_sensor, left_motor, right_motor, base_speed, integral, pre
         right_motor.run(base_speed)
     
     return prev_error, integral
-        
+dataframe = pd.DataFrame(columns=['error', 'KP', 'KD', 'KI'])        
 # MAIN CONTROL LOOP
 if clientID != -1:
 
