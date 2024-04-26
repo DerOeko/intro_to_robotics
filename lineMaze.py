@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from mindstorms import Motor, Direction, ColorSensor
 import numpy as np
 import pandas as pd
-
+import cv2
 sim.simxFinish(-1)
 clientID = sim.simxStart('127.0.0.1', 19999, True, True, 5000, 5)
 
@@ -82,12 +82,13 @@ def follow_line(color_sensor, left_motor, right_motor, base_speed, integral, pre
     print(process_image(color_sensor.image.astype(np.uint8)))
     
     image = color_sensor.image.astype(np.uint8)
-    print(f"Reflection value by color sensor: {color_sensor.reflection()}")
+    print(f"blackness value by color sensor: {color_sensor.reflection()}")
     #process_image(image)
-    whiteness = color_s
+    blackness = process_image(image)
     
-    threshold = 50
-    error = abs(threshold - reflection)
+    threshold = 40
+    error = abs(threshold - blackness)
+
     log_error(error,KP,KD,KI)
     derivative = error - prev_error
     prev_error = error
@@ -95,10 +96,10 @@ def follow_line(color_sensor, left_motor, right_motor, base_speed, integral, pre
     proportional = error
     update = KP * proportional + KD * derivative + KI * integral
     
-    if reflection < threshold:
+    if blackness < threshold:
         left_motor.run(base_speed + update)
         right_motor.run(base_speed - update)
-    elif reflection > threshold:
+    elif blackness > threshold:
         left_motor.run(base_speed - update)
         right_motor.run(base_speed + update)
     else:
@@ -111,7 +112,7 @@ dataframe = pd.DataFrame(columns=['error', 'KP', 'KD', 'KI'])
 if clientID != -1:
 
     print('Connected')
-    # Perfect reflection = 45
+    # Perfect blackness = 45
     left_motor = Motor(motor_port='A', direction=Direction.CLOCKWISE, clientID=clientID)
     right_motor = Motor(motor_port='B', direction=Direction.CLOCKWISE, clientID=clientID)
     color_sensor = ColorSensor(clientID=clientID)
