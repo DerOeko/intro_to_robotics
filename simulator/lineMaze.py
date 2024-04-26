@@ -1,4 +1,4 @@
-import sim
+import sim as sim
 import matplotlib.pyplot as plt
 from mindstorms import Motor, Direction, ColorSensor
 import numpy as np
