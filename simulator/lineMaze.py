@@ -87,7 +87,7 @@ def follow_line(color_sensor, left_motor, right_motor, base_speed, integral, pre
     blackness = process_image(image)
     
     threshold = 40
-    error = abs(threshold - blackness)
+    error = threshold - blackness
 
     log_error(error,KP,KD,KI)
     derivative = error - prev_error
@@ -95,16 +95,9 @@ def follow_line(color_sensor, left_motor, right_motor, base_speed, integral, pre
     integral += error
     proportional = error
     update = KP * proportional + KD * derivative + KI * integral
-    
-    if blackness < threshold:
-        left_motor.run(base_speed + update)
-        right_motor.run(base_speed - update)
-    elif blackness > threshold:
-        left_motor.run(base_speed - update)
-        right_motor.run(base_speed + update)
-    else:
-        left_motor.run(base_speed)
-        right_motor.run(base_speed)
+    left_motor.run(base_speed + update)
+    right_motor.run(base_speed - update)
+
     
     return prev_error, integral
 dataframe = pd.DataFrame(columns=['error', 'KP', 'KD', 'KI'])        
@@ -116,13 +109,13 @@ if clientID != -1:
     left_motor = Motor(motor_port='A', direction=Direction.CLOCKWISE, clientID=clientID)
     right_motor = Motor(motor_port='B', direction=Direction.CLOCKWISE, clientID=clientID)
     color_sensor = ColorSensor(clientID=clientID)
-    base_speed = 0.5
+    base_speed = 0.85
     integral = 0
     prev_error = 0
     t = 0
-    KP = 0.001
-    KD = 10 * KP
-    KI = 0.0001
+    KP = 0.032
+    KD = 0.005
+    KI = 0.000
     
     while True:
         t += 1
