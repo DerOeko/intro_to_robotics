@@ -109,12 +109,12 @@ if clientID != -1:
     left_motor = Motor(motor_port='A', direction=Direction.CLOCKWISE, clientID=clientID)
     right_motor = Motor(motor_port='B', direction=Direction.CLOCKWISE, clientID=clientID)
     color_sensor = ColorSensor(clientID=clientID)
-    base_speed = 0.85
+    base_speed = 1.0
     integral = 0
     prev_error = 0
     t = 0
-    KP = 0.032
-    KD = 0.005
+    KP = 0.033
+    KD = 0.002
     KI = 0.000
     
     while True:
