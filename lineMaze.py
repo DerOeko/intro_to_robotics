@@ -14,8 +14,9 @@ def show_image(image):
 
 def process_image(image):
     gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    _, binary = cv2.threshold(gray_image, 127, 255, cv2.THRESH_BINARY_INV)
-    
+    _, binary = cv2.threshold(gray_image, 127, 255, cv2.THRESH_BINARY)
+    return np.mean(binary[:, :]/255 * 100)
+    """
     # Find contours
     contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
@@ -31,7 +32,7 @@ def process_image(image):
         
         return error
     else:
-        return 0
+        return 0 """
         
 
 def is_red_detected(color_sensor):
@@ -77,10 +78,13 @@ def follow_line(color_sensor, left_motor, right_motor, base_speed, integral, pre
     """
     
     color_sensor.image = color_sensor._get_image_sensor()
+    print(f'Color sensor dimensions: {color_sensor.image.shape}')
+    print(process_image(color_sensor.image.astype(np.uint8)))
+    
     image = color_sensor.image.astype(np.uint8)
     print(f"Reflection value by color sensor: {color_sensor.reflection()}")
     #process_image(image)
-    reflection = color_sensor.reflection()
+    whiteness = color_s
     
     threshold = 50
     error = abs(threshold - reflection)
@@ -89,8 +93,7 @@ def follow_line(color_sensor, left_motor, right_motor, base_speed, integral, pre
     prev_error = error
     integral += error
     proportional = error
-    update = KP * proportional + KD * derivative  # + KI * integral
-
+    update = KP * proportional + KD * derivative + KI * integral
     
     if reflection < threshold:
         left_motor.run(base_speed + update)
@@ -116,9 +119,9 @@ if clientID != -1:
     integral = 0
     prev_error = 0
     t = 0
-    KP = 0.0075
+    KP = 0.001
     KD = 10 * KP
-    KI = 0.001
+    KI = 0.0001
     
     while True:
         t += 1
