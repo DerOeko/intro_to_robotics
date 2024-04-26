@@ -58,7 +58,7 @@ def is_blue_detected(color_sensor):
 
     return blue_intensity > blue_ratio_threshold
 
-def follow_line(color_sensor, left_motor, right_motor, base_speed, integral, prev_error, maxSpeed, KP, KD, KI):
+def follow_line(color_sensor, left_motor, right_motor, base_speed, integral, prev_error, KP, KD, KI):
     """
     A very simple line follower that should be improved.
     """
@@ -66,57 +66,30 @@ def follow_line(color_sensor, left_motor, right_motor, base_speed, integral, pre
     color_sensor.image = color_sensor._get_image_sensor()
     image = color_sensor.image.astype(np.uint8)
     print(f"Reflection value by color sensor: {color_sensor.reflection()}")
-    process_image(image)
+    #process_image(image)
     reflection = color_sensor.reflection()
-    while reflection < 20:
-        left_reflection = color_sensor.side_reflection(left=True)
-        right_reflection =color_sensor.side_reflection(left=False)
-        print(f'Left reflection: {left_reflection}')
-        print(f'Right reflection: {right_reflection}')
+    
+    threshold = 40
+    error = abs(threshold - reflection)
+    derivative = error - prev_error
+    prev_error = error
+    integral += error
+    proportional = error
+    update = KP * proportional + KD * derivative  + KI * integral
 
-        if left_reflection < right_reflection:
-            print("Turning left")
-            left_motor.run(0)
-            right_motor.run(maxSpeed+3)
-        elif left_reflection > right_reflection:
-            print("Turning right")
-            left_motor.run(maxSpeed+3)
-            right_motor.run(0)
-        else:
-            print("Going straight")
-            left_motor.run(maxSpeed/2)
-            right_motor.run(maxSpeed/2)
-        reflection = color_sensor.reflection()
-        print(f"New reflection: {reflection}")
-
+    
+    if reflection < threshold:
+        left_motor.run(base_speed + update)
+        right_motor.run(base_speed - update)
+    elif reflection > threshold:
+        left_motor.run(base_speed - update)
+        right_motor.run(base_speed + update)
     else:
-        threshold = 40  # Midpoint between black and white
-        print(f"Previous error: {prev_error}")
-
-        error = threshold - reflection
-        derivative = error - prev_error
-
-        prev_error = error
-        integral += error
-        proportional = error
-        print(f"Error: {error}")
-        print(f'Integral: {integral}')
-
-
-        update = KP * proportional + KD * derivative  + KI * integral
-        print(f"Update: {update}")
-
-        left_speed = max(min(base_speed + update, maxSpeed), 0)
-        right_speed = max(min(base_speed - update, maxSpeed), 0)
-        
-        left_motor.run(left_speed)
-        right_motor.run(right_speed)
+        left_motor.run(base_speed)
+        right_motor.run(base_speed)
     
-    
-        print(f'Current left speed: {left_speed}')
-        print(f'Current right speed: {right_speed}')
-
     return prev_error, integral
+        
 # MAIN CONTROL LOOP
 if clientID != -1:
 
@@ -125,22 +98,20 @@ if clientID != -1:
     left_motor = Motor(motor_port='A', direction=Direction.CLOCKWISE, clientID=clientID)
     right_motor = Motor(motor_port='B', direction=Direction.CLOCKWISE, clientID=clientID)
     color_sensor = ColorSensor(clientID=clientID)
-    returnCode, cameraHandle = sim.simxGetObjectHandle(clientID, "LineTracer/Vision_sensor", sim.simx_opmode_blocking)
-    base_speed = 1
+    base_speed = 0.5
     integral = 0
     prev_error = 0
     t = 0
-    KP = 0.0006
+    KP = 0.001
     KD = 10 * KP
     KI = 0.0001
-    maxSpeed = 5
     
     while True:
         t += 1
         # End connection
         print('-' *10)
         print(f'Time: {t}')
-        prev_error, integral = follow_line(color_sensor, left_motor, right_motor, base_speed, integral, prev_error, maxSpeed, KP, KD, KI)
+        prev_error, integral = follow_line(color_sensor, left_motor, right_motor, base_speed, integral, prev_error, KP, KD, KI)
 
 
 
