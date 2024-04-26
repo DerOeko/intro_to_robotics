@@ -69,13 +69,13 @@ def follow_line(color_sensor, left_motor, right_motor, base_speed, integral, pre
     #process_image(image)
     reflection = color_sensor.reflection()
     
-    threshold = 40
+    threshold = 50
     error = abs(threshold - reflection)
     derivative = error - prev_error
     prev_error = error
     integral += error
     proportional = error
-    update = KP * proportional + KD * derivative  + KI * integral
+    update = KP * proportional + KD * derivative  # + KI * integral
 
     
     if reflection < threshold:
@@ -102,9 +102,9 @@ if clientID != -1:
     integral = 0
     prev_error = 0
     t = 0
-    KP = 0.001
+    KP = 0.0075
     KD = 10 * KP
-    KI = 0.0001
+    KI = 0.001
     
     while True:
         t += 1
