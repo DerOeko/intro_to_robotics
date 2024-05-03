@@ -16,6 +16,24 @@ def process_image(image):
     gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     _, binary = cv2.threshold(gray_image, 127, 255, cv2.THRESH_BINARY)
     return np.mean(binary[:, :]/255 * 100)
+    """
+    # Find contours
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    cv2.drawContours(image, contours, -1, (0,255,0), cv2.FILLED)
+    show_image(image)
+    
+    if len(contours) > 0:
+        line_contour = contours[0]
+        moments = cv2.moments(line_contour)
+        cx = moments["m10"]/moments["m00"]
+        cy = moments["m01"]/moments["m00"]
+        error = cx - 4
+        
+        return error
+    else:
+        return 0 """
+        
 
 def is_red_detected(color_sensor):
     """
@@ -60,13 +78,15 @@ def follow_line(color_sensor, left_motor, right_motor, base_speed, integral, pre
     """
     
     color_sensor.image = color_sensor._get_image_sensor()
-        
+    print(f'Color sensor dimensions: {color_sensor.image.shape}')
+    print(process_image(color_sensor.image.astype(np.uint8)))
+    
     image = color_sensor.image.astype(np.uint8)
     print(f"blackness value by color sensor: {color_sensor.reflection()}")
     #process_image(image)
     blackness = process_image(image)
     
-    threshold = 50
+    threshold = 40
     error = abs(threshold - blackness)
 
     log_error(error,KP,KD,KI)
@@ -102,7 +122,7 @@ if clientID != -1:
     t = 0
     KP = 0.015
     KD = 0.0075
-    KI = 0
+    KI = 0.0001
     
     while True:
         t += 1
