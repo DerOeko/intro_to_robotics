@@ -44,19 +44,31 @@ sim.startSimulation()
 
 def check_battery(battery_level):
     "Return whether the battery is lower than a certain value."
-    return format_battery(battery_level) < 0.999
-def get_charging_image():
-    img = small_image_sensor.get_image()
-    thres_img = np.where()
-    
+    return format_battery(battery_level) < 0.9999
+
+def find_charging():
+	small_image_sensor._update_image()
+
+	while np.mean(format_image(small_image_sensor.get_image())) < 2:
+		small_image_sensor._update_image()
+		if robot.get_sonar_sensor() < 0.30:
+			left_motor.run(-3)
+			right_motor.run(-3)
+		else:
+			left_motor.run(0)
+			right_motor.run(5)	
+		print(np.mean(format_image(small_image_sensor.get_image())))
+
+	return np.mean(format_image(small_image_sensor.get_image())) > 2
 # MAIN CONTROL LOOP
 while True:
 	battery_low = check_battery(robot.get_battery())
 	if battery_low:
-		small_image_sensor._update_image()
-		show_image(small_image_sensor.get_image())
-  
-		show_image(format_image(small_image_sensor.get_image()))
+		if find_charging():
+			print("Charging found")
+			#small_image_sensor._update_image()
+			#show_image(small_image_sensor.get_image())
 
+			#show_image(format_image(small_image_sensor.get_image()))
 	left_motor.run(5)
 	right_motor.run(5)	
