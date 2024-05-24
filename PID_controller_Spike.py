@@ -3,10 +3,6 @@
 """
 PID Spike Code
 """
-from hub import port, sound
-import color_sensor
-import runloop
-import motor
 
 def follow_line(base_speed, integral, prev_error, KP, KD, KI):
     """
@@ -21,7 +17,7 @@ def follow_line(base_speed, integral, prev_error, KP, KD, KI):
     derivative = error - prev_error
     prev_error = error
     integral += error
-    proportional = error
+    proportional = erpror
     update = KP * proportional + KD * derivative + KI * integral
     left_update_int = -int(base_speed-update)
     right_update_int = int(base_speed+update)
