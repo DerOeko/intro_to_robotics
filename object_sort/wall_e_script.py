@@ -4,6 +4,137 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import cv2
 
+class Behaviour:
+    def __init__(self, priority):
+        self.priority = priority
+    def should_run(self):
+        pass
+    def run(self):
+        pass
+
+class CheckBattery(Behaviour):
+    def __str__(self):
+        return "Battery Behaviour"
+    def should_run(self):
+        return check_battery(robot.get_battery())
+    def run(self):
+        if see_charging():
+            left_motor.run(10)
+            right_motor.run(10)
+        else:
+            left_motor.run(5)
+            right_motor.run(0)
+
+class AvoidWalls(Behaviour):
+    def __init__(self, priority):
+        super().__init__(priority)
+        
+    def __str__(self):
+        return "Avoiding Walls Behaviour"
+    
+    def should_run(self):
+        return self.hitting_wall(top_image_sensor.get_image())
+    
+    def run(self):
+        if robot.get_sonar_sensor() < 0.30:
+            left_motor.run(-5)
+            right_motor.run(-5)
+        else:
+            left_motor.run(5)
+            right_motor.run(0)
+            
+    def hitting_wall(self, raw_img):
+        condition1 = np.logical_and(
+            np.logical_and(raw_img[:, :, 0] >= 123, raw_img[:, :, 0] <= 128),
+            np.logical_and(raw_img[:, :, 1] >=123, raw_img[:, :, 1] <= 128),
+            np.logical_and(raw_img[:, :, 2] >= 145, raw_img[:, :, 2] <= 150)
+        )
+        
+        condition2 = np.logical_and(
+            np.logical_and(raw_img[:, :, 0] >= 142, raw_img[:, :, 0] <= 147),
+            np.logical_and(raw_img[:, :, 1] >= 142, raw_img[:, :, 1] <= 147),
+            np.logical_and(raw_img[:, :, 2] >= 168, raw_img[:, :, 2] <= 173)
+        )
+        
+        combined_condition = np.logical_or(condition1, condition2)
+
+        # Ensure true and false values are broadcastable to the shape of raw_img
+        true_value = np.array([255, 255, 255])
+        false_value = np.array([0, 0, 0])
+        return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > 0 and robot.get_sonar_sensor() < 0.40
+
+class FindBlock(Behaviour):
+    def __str__(self):
+        return "Finding Block behaviour"
+    def __init__(self, priority):
+        super().__init__(priority)
+    def should_run(self):
+        return not self.seeing_block(small_image_sensor.get_image())
+    def run(self):
+        left_motor.run(5)
+        right_motor.run(0)
+    def seeing_block(self, raw_img):
+        condition1 = np.logical_and(
+            np.logical_and(raw_img[:, :, 0] >= 92, raw_img[:, :, 0] <= 116),
+            np.logical_and(raw_img[:, :, 1] >= 35, raw_img[:, :, 1] <= 67),
+            np.logical_and(raw_img[:, :, 2] >= 1, raw_img[:, :, 2] <= 16)
+        )
+        
+        condition2 = np.logical_and(
+            np.logical_and(raw_img[:, :, 0] >= 34, raw_img[:, :, 0] <= 56),
+            np.logical_and(raw_img[:, :, 1] >= 144, raw_img[:, :, 1] <= 182),
+            np.logical_and(raw_img[:, :, 2] >= 3, raw_img[:, :, 2] <= 15)
+        )
+        
+        combined_condition = np.logical_or(condition1, condition2)
+
+        # Ensure true and false values are broadcastable to the shape of raw_img
+        true_value = np.array([255, 255, 255])
+        false_value = np.array([0, 0, 0])
+        return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > 0
+    
+class GrabBlock(Behaviour):
+    def __str__(self):
+        return "Grabbing Block behaviour"
+    def __init__(self, priority):
+        super().__init__(priority)
+    def should_run(self):
+        return not self.having_block(small_image_sensor.get_image())
+    def run(self):
+        left_motor.run(5)
+        right_motor.run(5)
+    def having_block(self, raw_img):
+        condition1 = np.logical_and(
+            np.logical_and(raw_img[:, :, 0] >= 92, raw_img[:, :, 0] <= 116),
+            np.logical_and(raw_img[:, :, 1] >= 35, raw_img[:, :, 1] <= 67),
+            np.logical_and(raw_img[:, :, 2] >= 1, raw_img[:, :, 2] <= 16)
+        )
+        
+        condition2 = np.logical_and(
+            np.logical_and(raw_img[:, :, 0] >= 34, raw_img[:, :, 0] <= 56),
+            np.logical_and(raw_img[:, :, 1] >= 144, raw_img[:, :, 1] <= 182),
+            np.logical_and(raw_img[:, :, 2] >= 3, raw_img[:, :, 2] <= 15)
+        )
+        
+        combined_condition = np.logical_or(condition1, condition2)
+
+        # Ensure true and false values are broadcastable to the shape of raw_img
+        true_value = np.array([255, 255, 255])
+        false_value = np.array([0, 0, 0])
+        return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > 250
+
+class Scheduler:
+    def __init__(self, behaviours):
+        self.behaviours = sorted(behaviours, key= lambda b: b.priority)
+        print(behaviours)
+    def run_step(self, t):
+        for behaviour in self.behaviours:
+            if behaviour.should_run():
+                if t % 50 == 0:
+                    print(f"Current behaviour: {behaviour}")
+                behaviour.run()
+                break
+
 client = RemoteAPIClient()
 sim = client.require("sim")
 
@@ -25,11 +156,15 @@ def show_image(image):
 	plt.show()
 
 def format_image_for_charging(raw_img):
-    condition1 = np.all(raw_img == [242, 242, 0], axis=-1)
+    condition1 = np.logical_and(
+        np.logical_and(raw_img[:, :, 0] >= 250, raw_img[:, :, 0] <= 255),
+        np.logical_and(raw_img[:, :, 1] >= 250, raw_img[:, :, 1] <= 255),
+        np.logical_and(raw_img[:, :, 2] >= 16, raw_img[:, :, 2] <= 24)
+    )
     condition2 = np.logical_and(
-        np.logical_and(raw_img[:, :, 0] >= 166, raw_img[:, :, 0] <= 171),
-        np.logical_and(raw_img[:, :, 1] >= 109, raw_img[:, :, 1] <= 120),
-        np.logical_and(raw_img[:, :, 2] >= 25, raw_img[:, :, 2] <= 40)
+        np.logical_and(raw_img[:, :, 0] >= 152, raw_img[:, :, 0] <= 171),
+        np.logical_and(raw_img[:, :, 1] >= 100, raw_img[:, :, 1] <= 120),
+        np.logical_and(raw_img[:, :, 2] >= 21, raw_img[:, :, 2] <= 40)
     )
     
     combined_condition = np.logical_or(condition1, condition2)
@@ -45,7 +180,7 @@ sim.startSimulation()
 
 def check_battery(battery_level):
     "Return whether the battery is lower than a certain value."
-    return format_battery(battery_level) < 0.99
+    return format_battery(battery_level) < 0.999
 
 def find_charging():
 	small_image_sensor._update_image()
@@ -61,6 +196,8 @@ def find_charging():
 
 	return np.mean(format_image_for_charging(small_image_sensor.get_image())) > 2
 
+def see_charging():
+    return np.mean(format_image_for_charging(top_image_sensor.get_image())) > 0
 def find_block():
 	small_image_sensor._update_image()
 	while np.mean(format_image_for_blocks(small_image_sensor.get_image())) < 0.5 and not check_battery(robot.get_battery()):
@@ -73,11 +210,10 @@ def find_block():
 	return np.mean(format_image_for_blocks(small_image_sensor.get_image())) >= 0.5
 
 def format_image_for_blocks(raw_img):
-    
     condition1 = np.logical_and(
-        np.logical_and(raw_img[:, :, 0] >= 92, raw_img[:, :, 0] <= 116),
-        np.logical_and(raw_img[:, :, 1] >= 35, raw_img[:, :, 1] <= 58),
-        np.logical_and(raw_img[:, :, 2] >= 2, raw_img[:, :, 2] <= 16)
+        np.logical_and(raw_img[:, :, 0] >= 92, raw_img[:, :, 0] <= 124),
+        np.logical_and(raw_img[:, :, 1] >= 35, raw_img[:, :, 1] <= 70),
+        np.logical_and(raw_img[:, :, 2] >= 1, raw_img[:, :, 2] <= 16)
     )
     
     condition2 = np.logical_and(
@@ -93,16 +229,21 @@ def format_image_for_blocks(raw_img):
     false_value = np.array([0, 0, 0])
     
     return np.where(combined_condition[..., None], true_value, false_value)
-
+avoid_wall_behaviour = AvoidWalls(priority=1)
+check_battery_behaviour = CheckBattery(priority=2)
+find_block_behaviour = FindBlock(priority=3)
+grabbing_block_behaviour = GrabBlock(priority=4)
+scheduler = Scheduler([avoid_wall_behaviour,check_battery_behaviour, find_block_behaviour, grabbing_block_behaviour])
 # MAIN CONTROL LOOP
+t = 0
 while True:
-	small_image_sensor._update_image()
-
-	battery_low = check_battery(robot.get_battery())
-	if battery_low:
-		if find_charging():
-			print("Charging found")
-	if find_block():
-		print("Block found")
-		left_motor.run(10)
-		right_motor.run(10)	
+    t += 1
+    small_image_sensor._update_image()
+    top_image_sensor._update_image()
+    scheduler.run_step(t)
+    """if t % 50 == 0:
+        print(grabbing_block_behaviour.having_block(small_image_sensor.get_image()))
+        #print(avoid_wall_behaviour.hitting_wall(top_image_sensor.get_image()))
+        #print(np.mean(format_image_for_charging(top_image_sensor.get_image())))
+        show_image(small_image_sensor.get_image())
+        show_image(format_image_for_blocks(small_image_sensor.get_image()))"""
