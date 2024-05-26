@@ -113,13 +113,19 @@ class FindBlock(Behaviour):
             np.logical_and(raw_img[:, :, 1] >= 144, raw_img[:, :, 1] <= 182),
             np.logical_and(raw_img[:, :, 2] >= 3, raw_img[:, :, 2] <= 15)
         )
+
+        condition3 = np.logical_and(
+            np.logical_and(raw_img[:, :, 0] >= 4, raw_img[:, :, 0] <= 6),
+            np.logical_and(raw_img[:, :, 1] >= 2, raw_img[:, :, 1] <= 5),
+            np.logical_and(raw_img[:, :, 2] >= 4, raw_img[:, :, 2] <= 7)
+        )
         
-        combined_condition = np.logical_or(condition1, condition2)
+        combined_condition = np.logical_or(np.logical_or(condition1, condition2), condition3)
 
         # Ensure true and false values are broadcastable to the shape of raw_img
         true_value = np.array([255, 255, 255])
         false_value = np.array([0, 0, 0])
-        return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > 0
+        return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > 0.5
     
 class GrabBlock(Behaviour):
     def __str__(self):
@@ -144,26 +150,32 @@ class GrabBlock(Behaviour):
             np.logical_and(raw_img[:, :, 2] >= 3, raw_img[:, :, 2] <= 15)
         )
         
-        combined_condition = np.logical_or(condition1, condition2)
-
+        condition3 = np.logical_and(
+            np.logical_and(raw_img[:, :, 0] >= 4, raw_img[:, :, 0] <= 6),
+            np.logical_and(raw_img[:, :, 1] >= 2, raw_img[:, :, 1] <= 5),
+            np.logical_and(raw_img[:, :, 2] >= 4, raw_img[:, :, 2] <= 7)
+        )
+        
+        combined_condition = np.logical_or(np.logical_or(condition1, condition2), condition3)
+        
         # Ensure true and false values are broadcastable to the shape of raw_img
         true_value = np.array([255, 255, 255])
         false_value = np.array([0, 0, 0])
-        return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > 250
+        return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > 200
 
-class FindingBrownPlant(Behaviour):
+class CompressingBlock(Behaviour):
     def __init__(self, priority):
         super().__init__(priority)
     
     def __str__(self):
-        return "Finding Brown Plant Behaviour"
+        return "Compressing Block Behaviour"
     
     def should_run(self):
-        return self.having_brown_block(small_image_sensor.get_image()) and not self.seeing_plant(top_image_sensor.get_image())
-
+        return self.having_brown_block(small_image_sensor.get_image())
+    
     def run(self):
-        left_motor.run(turn_speed/2)
-        right_motor.run(0) 
+        robot.compress()
+    
     def having_brown_block(self, raw_img):
         condition1 = np.logical_and(
             np.logical_and(raw_img[:, :, 0] >= 92, raw_img[:, :, 0] <= 116),
@@ -174,6 +186,33 @@ class FindingBrownPlant(Behaviour):
         # Ensure true and false values are broadcastable to the shape of raw_img
         true_value = np.array([255, 255, 255])
         false_value = np.array([0, 0, 0])
+        return np.mean(np.where(condition1[..., None], true_value, false_value)) > 250
+    
+class FindingRedPlant(Behaviour):
+    def __init__(self, priority):
+        super().__init__(priority)
+    
+    def __str__(self):
+        return "Finding Red Plant Behaviour"
+    
+    def should_run(self):
+        return self.having_black_block(small_image_sensor.get_image()) and not self.seeing_plant(top_image_sensor.get_image())
+
+    def run(self):
+        left_motor.run(turn_speed/2)
+        right_motor.run(0)
+        
+    def having_black_block(self, raw_img):
+        condition1 = np.logical_and(
+            np.logical_and(raw_img[:, :, 0] >= 4, raw_img[:, :, 0] <= 6),
+            np.logical_and(raw_img[:, :, 1] >= 2, raw_img[:, :, 1] <= 5),
+            np.logical_and(raw_img[:, :, 2] >= 4, raw_img[:, :, 2] <= 7)
+        )
+
+        # Ensure true and false values are broadcastable to the shape of raw_img
+        true_value = np.array([255, 255, 255])
+        false_value = np.array([0, 0, 0])
+        #show_image(np.where(condition1[..., None], true_value, false_value))
         return np.mean(np.where(condition1[..., None], true_value, false_value)) > 250
 
     def seeing_plant(self, raw_img):
@@ -188,12 +227,12 @@ class FindingBrownPlant(Behaviour):
         false_value = np.array([0, 0, 0])
         return np.mean(np.where(condition1[..., None], true_value, false_value)) > 2
 
-class FindingGreenPlant(Behaviour):
+class FindingBluePlant(Behaviour):
     def __init__(self, priority):
         super().__init__(priority)
     
     def __str__(self):
-        return "Finding Green Plant Behaviour"
+        return "Finding Blue Plant Behaviour"
     
     def should_run(self):
         return self.having_green_block(small_image_sensor.get_image()) and not self.seeing_plant(top_image_sensor.get_image())
@@ -224,7 +263,41 @@ class FindingGreenPlant(Behaviour):
         true_value = np.array([255, 255, 255])
         false_value = np.array([0, 0, 0])
         return np.mean(np.where(condition1[..., None], true_value, false_value)) > 2
+
+class DeliverBlock(Behaviour):
+    def __init__(self, priority):
+        super().__init__(priority)
     
+    def __str__(self):
+        return "Delivering Block Behaviour"
+    
+    def should_run(self):
+        return self.having_block(small_image_sensor.get_image())
+    
+    def run(self):
+        left_motor.run(base_speed/3)
+        right_motor.run(base_speed/3)
+    
+    def having_block(self, raw_img):
+        condition1 = np.logical_and(
+            np.logical_and(raw_img[:, :, 0] >= 34, raw_img[:, :, 0] <= 56),
+            np.logical_and(raw_img[:, :, 1] >= 144, raw_img[:, :, 1] <= 182),
+            np.logical_and(raw_img[:, :, 2] >= 3, raw_img[:, :, 2] <= 15)
+        )
+        
+        condition2 = np.logical_and(
+            np.logical_and(raw_img[:, :, 0] >= 4, raw_img[:, :, 0] <= 6),
+            np.logical_and(raw_img[:, :, 1] >= 2, raw_img[:, :, 1] <= 5),
+            np.logical_and(raw_img[:, :, 2] >= 4, raw_img[:, :, 2] <= 7)
+        )
+        combined_condition= np.logical_or(condition1, condition2)
+        
+        # Ensure true and false values are broadcastable to the shape of raw_img
+        true_value = np.array([255, 255, 255])
+        false_value = np.array([0, 0, 0])
+        return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > 250
+        
+        
 class Scheduler:
     def __init__(self, behaviours):
         self.behaviours = sorted(behaviours, key= lambda b: b.priority)
@@ -261,9 +334,18 @@ avoid_wall_behaviour = AvoidWalls(priority=1)
 check_battery_behaviour = CheckBattery(priority=2)
 find_block_behaviour = FindBlock(priority=3)
 grabbing_block_behaviour = GrabBlock(priority=4)
-finding_brown_plant_behaviour = FindingBrownPlant(priority=5)
-finding_green_plant_behaviour = FindingGreenPlant(priority=6)
-scheduler = Scheduler([avoid_wall_behaviour,check_battery_behaviour, find_block_behaviour, grabbing_block_behaviour, finding_brown_plant_behaviour, finding_green_plant_behaviour])
+compressing_block_behaviour = CompressingBlock(priority=5)
+finding_red_plant_behaviour = FindingRedPlant(priority=6)
+finding_blue_plant_behaviour = FindingBluePlant(priority=7)
+delivering_block_behaviour = DeliverBlock(priority=8)
+scheduler = Scheduler([avoid_wall_behaviour,
+                       check_battery_behaviour, 
+                       find_block_behaviour, 
+                       grabbing_block_behaviour,
+                       compressing_block_behaviour, 
+                       finding_red_plant_behaviour, 
+                       finding_blue_plant_behaviour,
+                       delivering_block_behaviour])
 # MAIN CONTROL LOOP
 t = 0
 while True:
@@ -271,10 +353,9 @@ while True:
     small_image_sensor._update_image()
     top_image_sensor._update_image()
     scheduler.run_step(t)
-"""     if t % 50 == 0:
+    if t % 100 == 0:
         #print(avoid_wall_behaviour.hitting_wall(top_image_sensor.get_image()))
         #print(np.mean(format_image_for_charging(top_image_sensor.get_image())))
-        show_image(small_image_sensor.get_image())
-        print(finding_brown_plant_behaviour.having_brown_block(small_image_sensor.get_image()))
-        print(finding_brown_plant_behaviour.seeing_plant(top_image_sensor.get_image())) """
-        
+        #show_image(small_image_sensor.get_image())
+        #print(finding_brown_plant_behaviour.having_brown_block(small_image_sensor.get_image()))
+        #print(finding_brown_plant_behaviour.seeing_plant(top_image_sensor.get_image()))
