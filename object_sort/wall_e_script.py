@@ -89,7 +89,8 @@ class AvoidWalls(Behaviour):
         # Ensure true and false values are broadcastable to the shape of raw_img
         true_value = np.array([255, 255, 255])
         false_value = np.array([0, 0, 0])
-        return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > 200 and robot.get_sonar_sensor() < 0.2
+
+        return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > 200 and robot.get_sonar_sensor() < 0.25
 
 class FindBlock(Behaviour):
     def __str__(self):
@@ -305,7 +306,7 @@ class Scheduler:
     def run_step(self, t):
         for behaviour in self.behaviours:
             if behaviour.should_run():
-                if t % 10 == 0:
+                if t % 1 == 0:
                     print(f"Current behaviour: {behaviour}")
                 behaviour.run()
                 break
@@ -353,7 +354,7 @@ while True:
     small_image_sensor._update_image()
     top_image_sensor._update_image()
     scheduler.run_step(t)
-    if t % 100 == 0:
+    #if t % 100 == 0:
         #print(avoid_wall_behaviour.hitting_wall(top_image_sensor.get_image()))
         #print(np.mean(format_image_for_charging(top_image_sensor.get_image())))
         #show_image(small_image_sensor.get_image())
