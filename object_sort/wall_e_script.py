@@ -103,22 +103,26 @@ class FindBlock(Behaviour):
         left_motor.run(turn_speed)
         right_motor.run(0)
     def seeing_block(self, raw_img):
+        img_width = raw_img.shape[1]
+        img_heigth = raw_img.shape[0]
+        middle_third_idx = img_width//3
+        last_third_idx = 2*img_width//3
         condition1 = np.logical_and(
-            np.logical_and(raw_img[:, :, 0] >= 92, raw_img[:, :, 0] <= 116),
-            np.logical_and(raw_img[:, :, 1] >= 35, raw_img[:, :, 1] <= 67),
-            np.logical_and(raw_img[:, :, 2] >= 1, raw_img[:, :, 2] <= 16)
+            np.logical_and(raw_img[:, middle_third_idx:last_third_idx, 0] >= 92, raw_img[:, middle_third_idx:last_third_idx, 0] <= 116),
+            np.logical_and(raw_img[:, middle_third_idx:last_third_idx, 1] >= 35, raw_img[:, middle_third_idx:last_third_idx, 1] <= 67),
+            np.logical_and(raw_img[:, middle_third_idx:last_third_idx, 2] >= 1, raw_img[:, middle_third_idx:last_third_idx, 2] <= 16)
         )
         
         condition2 = np.logical_and(
-            np.logical_and(raw_img[:, :, 0] >= 34, raw_img[:, :, 0] <= 56),
-            np.logical_and(raw_img[:, :, 1] >= 144, raw_img[:, :, 1] <= 182),
-            np.logical_and(raw_img[:, :, 2] >= 3, raw_img[:, :, 2] <= 15)
+            np.logical_and(raw_img[:, middle_third_idx:last_third_idx, 0] >= 34, raw_img[:, middle_third_idx:last_third_idx, 0] <= 56),
+            np.logical_and(raw_img[:, middle_third_idx:last_third_idx, 1] >= 144, raw_img[:, middle_third_idx:last_third_idx, 1] <= 182),
+            np.logical_and(raw_img[:, middle_third_idx:last_third_idx, 2] >= 3, raw_img[:, middle_third_idx:last_third_idx, 2] <= 15)
         )
 
         condition3 = np.logical_and(
-            np.logical_and(raw_img[:, :, 0] >= 4, raw_img[:, :, 0] <= 6),
-            np.logical_and(raw_img[:, :, 1] >= 2, raw_img[:, :, 1] <= 5),
-            np.logical_and(raw_img[:, :, 2] >= 4, raw_img[:, :, 2] <= 7)
+            np.logical_and(raw_img[:, middle_third_idx:last_third_idx, 0] >= 4, raw_img[:, middle_third_idx:last_third_idx, 0] <= 6),
+            np.logical_and(raw_img[:, middle_third_idx:last_third_idx, 1] >= 2, raw_img[:, middle_third_idx:last_third_idx, 1] <= 5),
+            np.logical_and(raw_img[:, middle_third_idx:last_third_idx, 2] >= 4, raw_img[:, middle_third_idx:last_third_idx, 2] <= 7)
         )
         
         combined_condition = np.logical_or(np.logical_or(condition1, condition2), condition3)
@@ -162,7 +166,7 @@ class GrabBlock(Behaviour):
         # Ensure true and false values are broadcastable to the shape of raw_img
         true_value = np.array([255, 255, 255])
         false_value = np.array([0, 0, 0])
-        return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > 200
+        return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > 250
 
 class CompressingBlock(Behaviour):
     def __init__(self, priority):
@@ -175,6 +179,8 @@ class CompressingBlock(Behaviour):
         return self.having_brown_block(small_image_sensor.get_image())
     
     def run(self):
+        left_motor.run(base_speed)
+        right_motor.run(base_speed)
         robot.compress()
     
     def having_brown_block(self, raw_img):
@@ -187,7 +193,7 @@ class CompressingBlock(Behaviour):
         # Ensure true and false values are broadcastable to the shape of raw_img
         true_value = np.array([255, 255, 255])
         false_value = np.array([0, 0, 0])
-        return np.mean(np.where(condition1[..., None], true_value, false_value)) > 250
+        return np.mean(np.where(condition1[..., None], true_value, false_value)) > 200
     
 class FindingRedPlant(Behaviour):
     def __init__(self, priority):
@@ -197,6 +203,10 @@ class FindingRedPlant(Behaviour):
         return "Finding Red Plant Behaviour"
     
     def should_run(self):
+        if self.having_black_block(small_image_sensor.get_image()):
+            print("Black block detected")
+            if self.seeing_plant(top_image_sensor.get_image()):
+                print("Plant found.")
         return self.having_black_block(small_image_sensor.get_image()) and not self.seeing_plant(top_image_sensor.get_image())
 
     def run(self):
