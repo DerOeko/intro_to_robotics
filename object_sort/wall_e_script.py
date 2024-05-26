@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import cv2
 
-base_speed = 10
+base_speed = 5
+turn_speed = 3
 class Behaviour:
     def __init__(self, priority):
         self.priority = priority
@@ -23,7 +24,7 @@ class CheckBattery(Behaviour):
             left_motor.run(base_speed)
             right_motor.run(base_speed)
         else:
-            left_motor.run(base_speed)
+            left_motor.run(turn_speed)
             right_motor.run(0)
     def check_battery(self, battery_level):
         "Return whether the battery is lower than a certain value."
@@ -60,14 +61,14 @@ class AvoidWalls(Behaviour):
         return "Avoiding Walls Behaviour"
     
     def should_run(self):
-        return self.hitting_wall(top_image_sensor.get_image())
+        return self.hitting_wall(small_image_sensor.get_image())
     
     def run(self):
         if robot.get_sonar_sensor() < 0.30:
             left_motor.run(-base_speed)
             right_motor.run(-base_speed)
         else:
-            left_motor.run(base_speed)
+            left_motor.run(turn_speed)
             right_motor.run(0)
             
     def hitting_wall(self, raw_img):
@@ -88,7 +89,7 @@ class AvoidWalls(Behaviour):
         # Ensure true and false values are broadcastable to the shape of raw_img
         true_value = np.array([255, 255, 255])
         false_value = np.array([0, 0, 0])
-        return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > 3 and robot.get_sonar_sensor() < 0.40
+        return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > 200 and robot.get_sonar_sensor() < 0.2
 
 class FindBlock(Behaviour):
     def __str__(self):
@@ -98,7 +99,7 @@ class FindBlock(Behaviour):
     def should_run(self):
         return not self.seeing_block(small_image_sensor.get_image())
     def run(self):
-        left_motor.run(base_speed)
+        left_motor.run(turn_speed)
         right_motor.run(0)
     def seeing_block(self, raw_img):
         condition1 = np.logical_and(
@@ -150,6 +151,80 @@ class GrabBlock(Behaviour):
         false_value = np.array([0, 0, 0])
         return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > 250
 
+class FindingBrownPlant(Behaviour):
+    def __init__(self, priority):
+        super().__init__(priority)
+    
+    def __str__(self):
+        return "Finding Brown Plant Behaviour"
+    
+    def should_run(self):
+        return self.having_brown_block(small_image_sensor.get_image()) and not self.seeing_plant(top_image_sensor.get_image())
+
+    def run(self):
+        left_motor.run(turn_speed/2)
+        right_motor.run(0) 
+    def having_brown_block(self, raw_img):
+        condition1 = np.logical_and(
+            np.logical_and(raw_img[:, :, 0] >= 92, raw_img[:, :, 0] <= 116),
+            np.logical_and(raw_img[:, :, 1] >= 35, raw_img[:, :, 1] <= 67),
+            np.logical_and(raw_img[:, :, 2] >= 1, raw_img[:, :, 2] <= 16)
+        )
+
+        # Ensure true and false values are broadcastable to the shape of raw_img
+        true_value = np.array([255, 255, 255])
+        false_value = np.array([0, 0, 0])
+        return np.mean(np.where(condition1[..., None], true_value, false_value)) > 250
+
+    def seeing_plant(self, raw_img):
+        condition1 = np.logical_and(
+            np.logical_and(raw_img[:, :, 0] >= 120, raw_img[:, :, 0] <= 126),
+            np.logical_and(raw_img[:, :, 1] >= 0, raw_img[:, :, 1] <= 5),
+            np.logical_and(raw_img[:, :, 2] >= 0, raw_img[:, :, 2] <= 5)
+        )
+
+        # Ensure true and false values are broadcastable to the shape of raw_img
+        true_value = np.array([255, 255, 255])
+        false_value = np.array([0, 0, 0])
+        return np.mean(np.where(condition1[..., None], true_value, false_value)) > 2
+
+class FindingGreenPlant(Behaviour):
+    def __init__(self, priority):
+        super().__init__(priority)
+    
+    def __str__(self):
+        return "Finding Green Plant Behaviour"
+    
+    def should_run(self):
+        return self.having_green_block(small_image_sensor.get_image()) and not self.seeing_plant(top_image_sensor.get_image())
+
+    def run(self):
+        left_motor.run(turn_speed/2)
+        right_motor.run(0) 
+    def having_green_block(self, raw_img):
+        condition1 = np.logical_and(
+            np.logical_and(raw_img[:, :, 0] >= 34, raw_img[:, :, 0] <= 56),
+            np.logical_and(raw_img[:, :, 1] >= 144, raw_img[:, :, 1] <= 182),
+            np.logical_and(raw_img[:, :, 2] >= 3, raw_img[:, :, 2] <= 15)
+        )
+
+        # Ensure true and false values are broadcastable to the shape of raw_img
+        true_value = np.array([255, 255, 255])
+        false_value = np.array([0, 0, 0])
+        return np.mean(np.where(condition1[..., None], true_value, false_value)) > 250
+
+    def seeing_plant(self, raw_img):
+        condition1 = np.logical_and(
+            np.logical_and(raw_img[:, :, 0] >= 0, raw_img[:, :, 0] <= 8),
+            np.logical_and(raw_img[:, :, 1] >= 110, raw_img[:, :, 1] <= 120),
+            np.logical_and(raw_img[:, :, 2] >= 140, raw_img[:, :, 2] <= 150)
+        )
+
+        # Ensure true and false values are broadcastable to the shape of raw_img
+        true_value = np.array([255, 255, 255])
+        false_value = np.array([0, 0, 0])
+        return np.mean(np.where(condition1[..., None], true_value, false_value)) > 2
+    
 class Scheduler:
     def __init__(self, behaviours):
         self.behaviours = sorted(behaviours, key= lambda b: b.priority)
@@ -186,7 +261,9 @@ avoid_wall_behaviour = AvoidWalls(priority=1)
 check_battery_behaviour = CheckBattery(priority=2)
 find_block_behaviour = FindBlock(priority=3)
 grabbing_block_behaviour = GrabBlock(priority=4)
-scheduler = Scheduler([avoid_wall_behaviour,check_battery_behaviour, find_block_behaviour, grabbing_block_behaviour])
+finding_brown_plant_behaviour = FindingBrownPlant(priority=5)
+finding_green_plant_behaviour = FindingGreenPlant(priority=6)
+scheduler = Scheduler([avoid_wall_behaviour,check_battery_behaviour, find_block_behaviour, grabbing_block_behaviour, finding_brown_plant_behaviour, finding_green_plant_behaviour])
 # MAIN CONTROL LOOP
 t = 0
 while True:
@@ -194,9 +271,10 @@ while True:
     small_image_sensor._update_image()
     top_image_sensor._update_image()
     scheduler.run_step(t)
-    """if t % 50 == 0:
-        print(grabbing_block_behaviour.having_block(small_image_sensor.get_image()))
+"""     if t % 50 == 0:
         #print(avoid_wall_behaviour.hitting_wall(top_image_sensor.get_image()))
         #print(np.mean(format_image_for_charging(top_image_sensor.get_image())))
         show_image(small_image_sensor.get_image())
-        show_image(format_image_for_blocks(small_image_sensor.get_image()))"""
+        print(finding_brown_plant_behaviour.having_brown_block(small_image_sensor.get_image()))
+        print(finding_brown_plant_behaviour.seeing_plant(top_image_sensor.get_image())) """
+        
