@@ -44,6 +44,11 @@ def turn_right_wheel_degrees(degrees):
 def drive_forwards_degrees(degrees):
         motor.run_for_degrees(port.B,-degrees,80)
         motor.run_for_degrees(port.A,degrees,80)
+
+def drive_backwards_degrees(degrees):
+        motor.run_for_degrees(port.B,degrees,80)
+        motor.run_for_degrees(port.A,-degrees,80)
+
 def turn_counterclockwise_degrees(degrees):
         turn_left_wheel_degrees(-degrees)
         turn_right_wheel_degrees(degrees)
@@ -51,6 +56,23 @@ def turn_counterclockwise_degrees(degrees):
 def turn_clockwise_degrees(degrees):
         turn_left_wheel_degrees(degrees)
         turn_right_wheel_degrees(-degrees)
+
+def turn_untill_facing_degree(desiredangle):
+    facing_properly = False
+    while True:
+        current_angle= get_turn_angle()
+        if current_angle < desiredangle+1 and current_angle >= desiredangle-1 :
+            facing_properly=True
+            break
+        else:
+            turn_clockwise_degrees(1)
+            time.sleep_ms(200)
+def swap_current_square():
+    global current_square
+    if current_square=="Red":
+        current_square="Blue"
+    else:
+        current_square="Red"
 
 def check_if_seeing_block():
     distance_mm = get_distance()
@@ -95,7 +117,39 @@ def check_if_on_a_white_line():
     #get bottom color
     color = get_bottom_color()
     return color==10
-def check_if_
+
+def reorient_after_white_line_while_looking():
+    global current_square
+
+    #drive back  a bit
+    drive_backwards_degrees(30)
+
+    #check the square
+    if current_square=="Red":
+        #then we need to face around 0 degrees
+        turn_untill_facing_degree(0)
+    else:
+        #then we need to face around 180 degrees
+        turn_untill_facing_degree(180)
+
+    
+
+
+def probe_for_middle_line_in_front():
+    #drive forward a bit
+    check_counter = 0
+    while check_counter<30:
+        check_counter+=1
+        on_white = check_if_on_a_white_line()
+        if on_white:
+            #then we crossed the middle line, so we update the current square we are in
+            swap_current_square()
+            #then cross it
+            drive_forwards_degrees(90)
+            break
+
+        drive_forwards_degrees(5)
+
 
 #global params
 block_distance_cutoff_mm=500
@@ -103,6 +157,8 @@ block_distance_cutoff_mm=500
 #global flags
 found_block_flag = False
 current_goal = "Find Block"
+
+current_square="Red"
 
 
 async def main():
@@ -114,11 +170,16 @@ async def main():
     while True:
         # check for white line
         if check_if_on_a_white_line():
-            #check orientation
-            current_goal="Reorient"
+            #check the current goal
+            if current_goal == "Find Block":
+                reorient_after_white_line_while_looking()
+                probe_for_middle_line_in_front()
 
-        if current_goal=="Reorient":
-            pass
+
+            if current_goal == "Found Block":
+                pass
+
+
         if current_goal=="Find Block":
             find_block()
         if current_goal=="Lost Block":
@@ -130,9 +191,6 @@ async def main():
         if current_goal=="Found Block":
             print("Not doing anyrhinf cus we found the block")
             
-
-
-
         time.sleep_ms(100)
     
 
