@@ -57,21 +57,28 @@ def turn_clockwise_degrees(degrees):
         turn_left_wheel_degrees(degrees)
         turn_right_wheel_degrees(-degrees)
 
-def turn_untill_facing_degree(desiredangle):
-    facing_properly = False
+
+def turn_until_facing_degree(desired_angle):
     while True:
-        current_angle= get_turn_angle()
-        if current_angle < desiredangle+1 and current_angle >= desiredangle-1 :
-            facing_properly=True
+        current_angle = get_turn_angle()
+        angle_difference = desired_angle - current_angle
+
+        if -1 <= angle_difference <= 1:
+            print("from turn_until_facing_degree: success")
             break
         else:
+            print("Desired angle: {0}, current angle: {1}".format(desired_angle,current_angle))
             turn_clockwise_degrees(1)
-            time.sleep_ms(200)
+        time.sleep_ms(10)
+            
 def swap_current_square():
     global current_square
+
     if current_square=="Red":
+        print("swapping square to blue")
         current_square="Blue"
     else:
+        print("swapping square to red")
         current_square="Red"
 
 def check_if_seeing_block():
@@ -116,39 +123,46 @@ def drive_to_block():
 def check_if_on_a_white_line():
     #get bottom color
     color = get_bottom_color()
+    print("from 'check_if_on_a_white_line color seen: {0}".format(color))
     return color==10
 
 def reorient_after_white_line_while_looking():
     global current_square
 
+    print("from reorient_after_white_line_while_looking: driving backwards")
     #drive back  a bit
-    drive_backwards_degrees(30)
-
+    drive_forwards_degrees(-1200)
+    time.sleep_ms(2000)
+    print("from reorient_after_white_line_while_looking: current square:{0}".format(current_square))
     #check the square
     if current_square=="Red":
         #then we need to face around 0 degrees
-        turn_untill_facing_degree(0)
-    else:
+        turn_until_facing_degree(0)
+    if current_square=="Blue":
         #then we need to face around 180 degrees
-        turn_untill_facing_degree(180)
+        turn_until_facing_degree(180)
 
     
 
 
 def probe_for_middle_line_in_front():
+    print("Starting probing for middle line")
     #drive forward a bit
     check_counter = 0
-    while check_counter<30:
+    while check_counter<50:
         check_counter+=1
         on_white = check_if_on_a_white_line()
+
         if on_white:
             #then we crossed the middle line, so we update the current square we are in
             swap_current_square()
             #then cross it
-            drive_forwards_degrees(90)
+            drive_forwards_degrees(1600)
+            time.sleep_ms(2000)
             break
-
-        drive_forwards_degrees(5)
+        print("Driving forward a bit for the probe")
+        drive_forwards_degrees(20)
+        time.sleep_ms(100)
 
 
 #global params
@@ -170,8 +184,10 @@ async def main():
     while True:
         # check for white line
         if check_if_on_a_white_line():
+            print("White line detected")
             #check the current goal
-            if current_goal == "Find Block":
+            if current_goal == "Find Block" or current_goal=="Seen Block":
+                print("Starting reorienting ")
                 reorient_after_white_line_while_looking()
                 probe_for_middle_line_in_front()
 
