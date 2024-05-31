@@ -7,6 +7,7 @@ import distance_sensor
 import time
 import motor
 
+
 #PORT A  = right motor
 #PORT B  = left motor, negate the turn
 
@@ -89,6 +90,20 @@ def check_if_seeing_block():
         return False
     else: return True
 
+def get_found_block_color():
+    global found_block_color
+    global current_goal
+    #check color of top sensor
+    top_color = get_top_down_color()
+    if top_color==9:
+        print("found block color to Red")
+        return "Red"
+    elif top_color==3 or top_color==4:
+        print(" found block color to blue")
+        return  "Blue"
+    else:
+        print("Found a block of unknown color")
+        return "Unknown"
 
 def find_block():
     global current_goal
@@ -106,6 +121,7 @@ def find_block():
 def drive_to_block():
     print("called 'drive to block'")
     global current_goal
+    global found_block_color
     if not check_if_seeing_block():
         #you lost a block you already found
         current_goal="Lost Block"
@@ -116,9 +132,15 @@ def drive_to_block():
     #check how close we are
     distance = get_distance()
     print("Distance found in 'drive to block' is: {0}".format(distance))
-    if distance < 50:
-        print("found the block in 'drive to block'")
-        current_goal="Found Block"
+    if distance < 43:
+        print("found the block, setting the found color")
+        color_found = get_found_block_color()
+        if color_found != "Unknown":
+            current_goal="Found Block"
+            found_block_color = color_found
+        else:
+            current_goal="Lost Block"
+
 
 def check_if_on_a_white_line():
     #get bottom color
@@ -142,8 +164,38 @@ def reorient_after_white_line_while_looking():
         #then we need to face around 180 degrees
         turn_until_facing_degree(180)
 
-    
+def reorient_to_correct_square():
+    global found_block_color
+    if found_block_color=="Red":
+        if current_square=="Red":
+            #ignore
+            pass
+        if current_square=="Blue":
+            print("turning to face the blue square")
+            turn_until_facing_degree(180)
+    if found_block_color=="Blue":
+        if current_square=="Blue":
+            #ignore 
+            pass
+        if current_square=="Red":
+            print("turning the face the red square")
+            turn_until_facing_degree(0)
+            pass
+    pass
 
+def check_if_block_needs_to_move():
+    global found_block_color
+    if found_block_color=="Red":
+        if current_square=="Red":
+            return False,-1
+        if current_square=="Blue":
+            return True,180
+    if found_block_color=="Blue":
+        if current_square=="Blue":
+            return False,-1
+        if current_square=="Red":
+            return True,0
+    return False,-999
 
 def probe_for_middle_line_in_front():
     print("Starting probing for middle line")
@@ -157,12 +209,13 @@ def probe_for_middle_line_in_front():
             #then we crossed the middle line, so we update the current square we are in
             swap_current_square()
             #then cross it
-            drive_forwards_degrees(1600)
+            drive_forwards_degrees(5000)
             time.sleep_ms(2000)
             break
         print("Driving forward a bit for the probe")
         drive_forwards_degrees(20)
         time.sleep_ms(100)
+
 
 
 #global params
@@ -173,7 +226,7 @@ found_block_flag = False
 current_goal = "Find Block"
 
 current_square="Red"
-
+found_block_color="None"
 
 async def main():
     global current_goal
@@ -190,13 +243,19 @@ async def main():
                 print("Starting reorienting ")
                 reorient_after_white_line_while_looking()
                 probe_for_middle_line_in_front()
-
-
-            if current_goal == "Found Block":
-                pass
+            if current_goal == "Push Block":
+                drive_forwards_degrees(16000)
+                swap_current_square()
+                time.sleep_ms(12000)
+                drive_forwards_degrees(-1000)
+                time.sleep_ms(6000)
+                turn_clockwise_degrees(90)
+                time.sleep_ms(3000)
+                current_goal="Find Block"
 
 
         if current_goal=="Find Block":
+            print("I think I am in the {0} square".format(current_square))
             find_block()
         if current_goal=="Lost Block":
             turn_counterclockwise_degrees(28)
@@ -204,9 +263,28 @@ async def main():
         if current_goal=="Seen Block":
             #we have spotted a block, so we need to drive towards it.
             drive_to_block()
-        if current_goal=="Found Block":
-            print("Not doing anyrhinf cus we found the block")
+
+        if current_goal == "Found Block":
+                print("We have found a block with the color: {0}".format(found_block_color))
+                should_move_block,degrees_to_face = check_if_block_needs_to_move()
+                #if the block must be pushed into a different square
+                if should_move_block:
+                    print("turning to face correct square for block: {0}",degrees_to_face)
+                    turn_until_facing_degree(degrees_to_face)
+                    current_goal="Push Block"
+                else:
+                    print("Do not move the block")
+                    #move back a bit or something
+                    drive_forwards_degrees(-1200)
+                    time.sleep_ms(2000)
+                    turn_clockwise_degrees(120)
+                    current_goal="Find Block"
+
+        if current_goal == "Push Block":
+            #move forward a little
+            drive_forwards_degrees(10)
             
+
         time.sleep_ms(100)
     
 
