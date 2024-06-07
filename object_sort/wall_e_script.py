@@ -111,7 +111,7 @@ class FindBlock(Behaviour):
     def __init__(self, priority):
         super().__init__(priority)
     def should_run(self):
-        return not self.seeing_block(small_image_sensor.get_image())
+        return not self.seeing_block(small_image_sensor.get_image()) and not self.seeing_black_block(small_image_sensor.get_image())
     def run(self):
         left_motor.run(turn_speed)
         right_motor.run(0)
@@ -148,14 +148,23 @@ class FindBlock(Behaviour):
         true_value = np.array([255, 255, 255])
         false_value = np.array([0, 0, 0])
         return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > 0.5
-    
+    def seeing_black_block(self, raw_img):
+        condition1 = np.logical_and(
+            np.logical_and(raw_img[:, :, 0] > 0, raw_img[:, :, 0] <= 13),
+            np.logical_and(raw_img[:, :, 1] >= 1, raw_img[:, :, 1] <= 8),
+            np.logical_and(raw_img[:, :, 2] >= 1, raw_img[:, :, 2] <= 11)
+        )
+        # Ensure true and false values are broadcastable to the shape of raw_img
+        true_value = np.array([255, 255, 255])
+        false_value = np.array([0, 0, 0])
+        return np.mean(np.where(condition1[..., None], true_value, false_value)) > 0.5
 class GrabBlock(Behaviour):
     def __str__(self):
         return "Grabbing Block behaviour"
     def __init__(self, priority):
         super().__init__(priority)
     def should_run(self):
-        return not self.having_color_block(small_image_sensor.get_image()) and not self.having_black_block(small_image_sensor.get_image())
+        return not self.having_color_block(small_image_sensor.get_image()) and not having_black_block(small_image_sensor.get_image())
     def run(self):
         left_motor.run(base_speed)
         right_motor.run(base_speed)
@@ -181,27 +190,33 @@ class GrabBlock(Behaviour):
         true_value = np.array([255, 255, 255])
         false_value = np.array([0, 0, 0])
         return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > 250
-    def having_black_block(self, raw_img):
+    
+def having_black_block(raw_img):
         img_width = raw_img.shape[1]
-        left_half_idx = img_width//2
+        img_heigth = raw_img.shape[0]
+        middle_third_idx = img_width//4
+        last_third_idx = 3*img_width//4
+        
         # Black left
         condition1 = np.logical_and(
-            np.logical_and(raw_img[:, :left_half_idx, 0] > 0, raw_img[:, :left_half_idx, 0] <= 13),
-            np.logical_and(raw_img[:, :left_half_idx, 1] >= 1, raw_img[:, :left_half_idx, 1] <= 8),
-            np.logical_and(raw_img[:, :left_half_idx, 2] >= 1, raw_img[:, :left_half_idx, 2] <= 11)
+            np.logical_and(raw_img[:, :middle_third_idx, 0] > 0, raw_img[:, :middle_third_idx, 0] <= 15),
+            np.logical_and(raw_img[:, :middle_third_idx, 1] >= 1, raw_img[:, :middle_third_idx, 1] <= 15),
+            np.logical_and(raw_img[:, :middle_third_idx, 2] >= 1, raw_img[:, :middle_third_idx, 2] <= 15)
         )
         
         # Black right
         condition2 = np.logical_and(
-            np.logical_and(raw_img[:, left_half_idx:, 0] > 0, raw_img[:, left_half_idx:, 0] <= 13),
-            np.logical_and(raw_img[:, left_half_idx:, 1] >= 1, raw_img[:, left_half_idx:, 1] <= 8),
-            np.logical_and(raw_img[:, left_half_idx:, 2] >= 1, raw_img[:, left_half_idx:, 2] <= 11)
+            np.logical_and(raw_img[:, last_third_idx:, 0] > 0, raw_img[:, last_third_idx:, 0] <= 13),
+            np.logical_and(raw_img[:, last_third_idx:, 1] >= 1, raw_img[:, last_third_idx:, 1] <= 8),
+            np.logical_and(raw_img[:, last_third_idx:, 2] >= 1, raw_img[:, last_third_idx:, 2] <= 11)
         )
         combined_condition = np.logical_or(condition1, condition2)
 
         # Ensure true and false values are broadcastable to the shape of raw_img
         true_value = np.array([255, 255, 255])
         false_value = np.array([0, 0, 0])
+        #print(np.mean(np.where(combined_condition[..., None], true_value, false_value)))
+        #show_image(np.where(combined_condition[..., None], true_value, false_value))
         return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > black_thr
 
 class CompressingBlock(Behaviour):
@@ -239,45 +254,21 @@ class FindingRedPlant(Behaviour):
         return "Finding Red Plant Behaviour"
     
     def should_run(self):
-        if self.having_black_block(small_image_sensor.get_image()):
+        if having_black_block(small_image_sensor.get_image()):
             print("Black block detected")
             if self.seeing_plant(top_image_sensor.get_image()):
                 print("Plant found.")
-        return self.having_black_block(small_image_sensor.get_image()) and not self.seeing_plant(top_image_sensor.get_image())
+        return having_black_block(small_image_sensor.get_image()) and not self.seeing_plant(top_image_sensor.get_image())
 
     def run(self):
         left_motor.run(turn_speed/3)
         right_motor.run(0)
-        
-    def having_black_block(self, raw_img):
-        img_width = raw_img.shape[1]
-        left_half_idx = img_width//2
-        # Black left
-        condition1 = np.logical_and(
-            np.logical_and(raw_img[:, :left_half_idx, 0] > 0, raw_img[:, :left_half_idx, 0] <= 13),
-            np.logical_and(raw_img[:, :left_half_idx, 1] >= 1, raw_img[:, :left_half_idx, 1] <= 8),
-            np.logical_and(raw_img[:, :left_half_idx, 2] >= 1, raw_img[:, :left_half_idx, 2] <= 11)
-        )
-        
-        # Black right
-        condition2 = np.logical_and(
-            np.logical_and(raw_img[:, left_half_idx:, 0] > 0, raw_img[:, left_half_idx:, 0] <= 13),
-            np.logical_and(raw_img[:, left_half_idx:, 1] >= 1, raw_img[:, left_half_idx:, 1] <= 8),
-            np.logical_and(raw_img[:, left_half_idx:, 2] >= 1, raw_img[:, left_half_idx:, 2] <= 11)
-        )
-        combined_condition = np.logical_or(condition1, condition2)
-
-        # Ensure true and false values are broadcastable to the shape of raw_img
-        true_value = np.array([255, 255, 255])
-        false_value = np.array([0, 0, 0])
-        print(np.mean(np.where(combined_condition[..., None], true_value, false_value)))
-        return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > black_thr
 
     def seeing_plant(self, raw_img):
         img_width = raw_img.shape[1]
         img_heigth = raw_img.shape[0]
         middle_third_idx = img_width//3
-        last_third_idx = 2*img_width//3
+        last_third_idx = 2*middle_third_idx
         condition1 = np.logical_and(
             np.logical_and(raw_img[:, middle_third_idx:last_third_idx, 0] >= 115, raw_img[:, middle_third_idx:last_third_idx, 0] <= 126),
             np.logical_and(raw_img[:, middle_third_idx:last_third_idx, 1] >= 0, raw_img[:, middle_third_idx:last_third_idx, 1] <= 8),
@@ -287,7 +278,7 @@ class FindingRedPlant(Behaviour):
         # Ensure true and false values are broadcastable to the shape of raw_img
         true_value = np.array([255, 255, 255])
         false_value = np.array([0, 0, 0])
-        return np.mean(np.where(condition1[..., None], true_value, false_value)) > 1
+        return np.mean(np.where(condition1[..., None], true_value, false_value)) > 15
 
 class FindingBluePlant(Behaviour):
     def __init__(self, priority):
@@ -338,7 +329,7 @@ class DeliverBlock(Behaviour):
         return "Delivering Block Behaviour"
     
     def should_run(self):
-        return self.having_green_block(small_image_sensor.get_image()) or self.having_black_block(small_image_sensor.get_image())
+        return self.having_green_block(small_image_sensor.get_image()) or having_black_block(small_image_sensor.get_image())
     
     def run(self):
         left_motor.run(base_speed/3)
@@ -357,28 +348,6 @@ class DeliverBlock(Behaviour):
         true_value = np.array([255, 255, 255])
         false_value = np.array([0, 0, 0])
         return np.mean(np.where(condition1[..., None], true_value, false_value)) > 250
-    def having_black_block(self, raw_img):
-        img_width = raw_img.shape[1]
-        left_half_idx = img_width//2
-        # Black left
-        condition1 = np.logical_and(
-            np.logical_and(raw_img[:, :left_half_idx, 0] > 0, raw_img[:, :left_half_idx, 0] <= 13),
-            np.logical_and(raw_img[:, :left_half_idx, 1] >= 1, raw_img[:, :left_half_idx, 1] <= 8),
-            np.logical_and(raw_img[:, :left_half_idx, 2] >= 1, raw_img[:, :left_half_idx, 2] <= 11)
-        )
-        
-        # Black right
-        condition2 = np.logical_and(
-            np.logical_and(raw_img[:, left_half_idx:, 0] > 0, raw_img[:, left_half_idx:, 0] <= 13),
-            np.logical_and(raw_img[:, left_half_idx:, 1] >= 1, raw_img[:, left_half_idx:, 1] <= 8),
-            np.logical_and(raw_img[:, left_half_idx:, 2] >= 1, raw_img[:, left_half_idx:, 2] <= 11)
-        )
-        combined_condition = np.logical_or(condition1, condition2)
-
-        # Ensure true and false values are broadcastable to the shape of raw_img
-        true_value = np.array([255, 255, 255])
-        false_value = np.array([0, 0, 0])
-        return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > black_thr
         
 class Scheduler:
     def __init__(self, behaviours):
@@ -435,6 +404,8 @@ while True:
     small_image_sensor._update_image()
     top_image_sensor._update_image()
     #show_image(small_image_sensor.get_image())
+    #having_black_block(small_image_sensor.get_image())
+    #print(finding_red_plant_behaviour.seeing_plant(top_image_sensor.get_image()))
     scheduler.run_step(t)
     #if t % 100 == 0:
         #print(avoid_wall_behaviour.hitting_wall(top_image_sensor.get_image()))
