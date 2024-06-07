@@ -6,10 +6,12 @@ import runloop
 import distance_sensor
 import time
 import motor
+import random
 
 
 #PORT A  = right motor
 #PORT B  = left motor, negate the turn
+#PORT E  = Top motor
 
 #PORT C = bottom facing color
 #PORT D = top facing color
@@ -43,12 +45,12 @@ def turn_right_wheel_degrees(degrees):
     motor.run_for_degrees(port.A,degrees,80)
 
 def drive_forwards_degrees(degrees):
-        motor.run_for_degrees(port.B,-degrees,80)
-        motor.run_for_degrees(port.A,degrees,80)
+        motor.run_for_degrees(port.B,-degrees,200)
+        motor.run_for_degrees(port.A,degrees,200)
 
 def drive_backwards_degrees(degrees):
-        motor.run_for_degrees(port.B,degrees,80)
-        motor.run_for_degrees(port.A,-degrees,80)
+        motor.run_for_degrees(port.B,degrees,200)
+        motor.run_for_degrees(port.A,-degrees,200)
 
 def turn_counterclockwise_degrees(degrees):
         turn_left_wheel_degrees(-degrees)
@@ -70,7 +72,7 @@ def turn_until_facing_degree(desired_angle):
         else:
             print("Desired angle: {0}, current angle: {1}".format(desired_angle,current_angle))
             turn_clockwise_degrees(1)
-        time.sleep_ms(10)
+        time.sleep_ms(5)
             
 def swap_current_square():
     global current_square
@@ -90,6 +92,11 @@ def check_if_seeing_block():
         return False
     else: return True
 
+def lower_arm_to_grab_block():
+    motor.run_to_relative_position(port.E,0,80)
+def raise_arm():
+    motor.run_to_relative_position(port.E,-90,100)
+
 def get_found_block_color():
     global found_block_color
     global current_goal
@@ -106,12 +113,22 @@ def get_found_block_color():
         return "Unknown"
 
 def find_block():
+    global degrees_turned_while_searching
     global current_goal
     print("called 'find block'")
     seeing_block = check_if_seeing_block()
     if not seeing_block:
+        print(degrees_turned_while_searching)
+        if(degrees_turned_while_searching>=45):
+            random_offset = random.randint(0,45)
+            drive_forwards_degrees(180+random_offset)
+            time.sleep_ms(1000)
+            print("driving forward a little cus we didnt see anything for a minute just turning")
+            degrees_turned_while_searching=0
         #turn right a bit
         turn_clockwise_degrees(1)
+        degrees_turned_while_searching+=1
+        
     else:
         print("Seen a block in 'find block' mehthod")
         current_goal="Seen Block"
@@ -134,11 +151,16 @@ def drive_to_block():
     print("Distance found in 'drive to block' is: {0}".format(distance))
     if distance < 43:
         print("found the block, setting the found color")
+        print("moving arm down")
+        lower_arm_to_grab_block()
+        time.sleep_ms(1000)
         color_found = get_found_block_color()
         if color_found != "Unknown":
             current_goal="Found Block"
             found_block_color = color_found
         else:
+            raise_arm()
+            time.sleep_ms(2000)
             current_goal="Lost Block"
 
 
@@ -228,11 +250,13 @@ current_goal = "Find Block"
 current_square="Red"
 found_block_color="None"
 
+#global counter for degrees turned while searching
+degrees_turned_while_searching = 0
+
+
 async def main():
     global current_goal
     motion_sensor.reset_yaw(0)
-
-
 
     while True:
         # check for white line
@@ -244,13 +268,20 @@ async def main():
                 reorient_after_white_line_while_looking()
                 probe_for_middle_line_in_front()
             if current_goal == "Push Block":
-                drive_forwards_degrees(16000)
+                #so at this point it has a block, and it hit the middle line, below is a little se
+                drive_forwards_degrees(13000)
                 swap_current_square()
                 time.sleep_ms(12000)
-                drive_forwards_degrees(-1000)
+                #raise arm to release the cube
+                raise_arm()
+                time.sleep_ms(3000)
+                #drive back a little
+                drive_forwards_degrees(-700)
                 time.sleep_ms(6000)
+                #turn a little so we dont accidentally find the sorted block
                 turn_clockwise_degrees(90)
                 time.sleep_ms(3000)
+                
                 current_goal="Find Block"
 
 
@@ -258,7 +289,7 @@ async def main():
             print("I think I am in the {0} square".format(current_square))
             find_block()
         if current_goal=="Lost Block":
-            turn_counterclockwise_degrees(28)
+            turn_counterclockwise_degrees(40)
             current_goal="Find Block"
         if current_goal=="Seen Block":
             #we have spotted a block, so we need to drive towards it.
@@ -274,20 +305,21 @@ async def main():
                     current_goal="Push Block"
                 else:
                     print("Do not move the block")
+                    raise_arm()
+                    time.sleep_ms(2000)
                     #move back a bit or something
                     drive_forwards_degrees(-1200)
                     time.sleep_ms(2000)
-                    turn_clockwise_degrees(120)
+                    turn_clockwise_degrees(240)
+                    time.sleep_ms(2000)
                     current_goal="Find Block"
 
         if current_goal == "Push Block":
-            #move forward a little
-            drive_forwards_degrees(10)
-            
+            drive_forwards_degrees(30)
+
 
         time.sleep_ms(100)
-    
 
-        
+    
 
 runloop.run(main())
