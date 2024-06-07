@@ -9,10 +9,9 @@ import motor
 import random
 
 
-
-#PORT A  = right motor
-#PORT B  = left motor, negate the turn
-#PORT E  = Top motor
+#PORT A= right motor
+#PORT B= left motor, negate the turn
+#PORT E= Top motor
 
 #PORT C = bottom facing color
 #PORT D = top facing color
@@ -33,6 +32,33 @@ def get_turn_angle():
     yaw*=-.1
     if yaw < 0:
         return 360+yaw
+    else: return yaw
+
+def get_distance():
+    return distance_sensor.distance(port.F)
+
+def check_bound():
+    return False
+def turn_left_wheel_degrees(degrees):
+    motor.run_for_degrees(port.B,-degrees,80)
+def turn_right_wheel_degrees(degrees):
+    motor.run_for_degrees(port.A,degrees,80)
+
+def drive_forwards_degrees(degrees):
+        motor.run_for_degrees(port.B,-degrees,140)
+        motor.run_for_degrees(port.A,degrees,140)
+
+def drive_backwards_degrees(degrees):
+        motor.run_for_degrees(port.B,degrees,140)
+        motor.run_for_degrees(port.A,-degrees,140)
+
+def turn_counterclockwise_degrees(degrees):
+        turn_left_wheel_degrees(-degrees)
+        turn_right_wheel_degrees(degrees)
+
+def turn_clockwise_degrees(degrees):
+        turn_left_wheel_degrees(degrees)
+        turn_right_wheel_degrees(-degrees)
 def play_victory_sound():
     sound.beep(500,200,100)
     time.sleep_ms(300)
@@ -54,7 +80,7 @@ def play_victory_sound():
 def saw_unssorted_block_sound():
     #sound.beep(500,500,100)
     time.sleep_ms(200)
-   # sound.beep(420,600,100)
+# sound.beep(420,600,100)
     time.sleep_ms(200)
 
 def saw_block_sound():
@@ -64,35 +90,7 @@ def saw_block_sound():
     time.sleep_ms(100)
 
 
-def get_distance():
-    return distance_sensor.distance(port.F)
-    
-def check_bound():
-    return False
-def turn_left_wheel_degrees(degrees):
-    motor.run_for_degrees(port.B,-degrees,80)
-def turn_right_wheel_degrees(degrees):
-    motor.run_for_degrees(port.A,degrees,80)
-
-def drive_forwards_degrees(degrees):
-        motor.run_for_degrees(port.B,-degrees,160)
-        motor.run_for_degrees(port.A,degrees,160)
-
-def drive_backwards_degrees(degrees):
-        motor.run_for_degrees(port.B,degrees,160)
-        motor.run_for_degrees(port.A,-degrees,160)
-
-def turn_counterclockwise_degrees(degrees):
-        turn_left_wheel_degrees(-degrees)
-        turn_right_wheel_degrees(degrees)
-
-def turn_clockwise_degrees(degrees):
-        turn_left_wheel_degrees(degrees)
-        turn_right_wheel_degrees(-degrees)
-
-
 def turn_until_facing_degree(desired_angle):
-    print("Trying to face {0}".format(desired_angle))
     while True:
         current_angle = get_turn_angle()
         angle_difference = desired_angle - current_angle
@@ -104,7 +102,7 @@ def turn_until_facing_degree(desired_angle):
             print("Desired angle: {0}, current angle: {1}".format(desired_angle,current_angle))
             turn_clockwise_degrees(1)
         time.sleep_ms(5)
-            
+
 def swap_current_square():
     global current_square
 
@@ -138,7 +136,7 @@ def get_found_block_color():
         return "Red"
     elif top_color==3 or top_color==4:
         print(" found block color to blue")
-        return  "Blue"
+        return"Blue"
     else:
         print("Found a block of unknown color")
         return "Unknown"
@@ -150,22 +148,22 @@ def find_block():
     seeing_block = check_if_seeing_block()
     if not seeing_block:
         print(degrees_turned_while_searching)
-        if(degrees_turned_while_searching>=390):
+        if(degrees_turned_while_searching>=370):
             random_offset = random.randint(0,45)
-            drive_forwards_degrees(100+random_offset)
+            drive_forwards_degrees(90+random_offset)
             time.sleep_ms(1000)
             print("driving forward a little cus we didnt see anything for a minute just turning")
             degrees_turned_while_searching=0
         #turn right a bit
         turn_clockwise_degrees(1)
         degrees_turned_while_searching+=1
-        
+
     else:
         print("Seen a block in 'find block' mehthod")
         current_goal="Seen Block"
         return False
         #spotted a block
-        
+
 def drive_to_block():
     print("called 'drive to block'")
     global current_goal
@@ -205,7 +203,7 @@ def reorient_after_white_line_while_looking():
     global current_square
 
     print("from reorient_after_white_line_while_looking: driving backwards")
-    #drive back  a bit
+    #drive backa bit
     drive_forwards_degrees(-1200)
     time.sleep_ms(2000)
     print("from reorient_after_white_line_while_looking: current square:{0}".format(current_square))
@@ -228,7 +226,7 @@ def reorient_to_correct_square():
             turn_until_facing_degree(180)
     if found_block_color=="Blue":
         if current_square=="Blue":
-            #ignore 
+            #ignore
             pass
         if current_square=="Red":
             print("turning the face the red square")
@@ -238,7 +236,6 @@ def reorient_to_correct_square():
 
 def check_if_block_needs_to_move():
     global found_block_color
-    print("Found block color is {0}".format(found_block_color))
     if found_block_color=="Red":
         if current_square=="Red":
             return False,-1
@@ -263,7 +260,7 @@ def probe_for_middle_line_in_front():
             #then we crossed the middle line, so we update the current square we are in
             swap_current_square()
             #then cross it
-            drive_forwards_degrees(5000)
+            drive_forwards_degrees(4000)
             time.sleep_ms(2000)
             break
         print("Driving forward a bit for the probe")
@@ -289,8 +286,7 @@ degrees_turned_while_searching = 0
 async def main():
     global current_goal
     motion_sensor.reset_yaw(0)
-    #saw_unssorted_block_sound()
-    #time.sleep_ms(3000)
+
     while True:
         # check for white line
         if check_if_on_a_white_line():
@@ -302,20 +298,21 @@ async def main():
                 probe_for_middle_line_in_front()
             if current_goal == "Push Block":
                 #so at this point it has a block, and it hit the middle line, below is a little se
-                drive_forwards_degrees(5000)
+                drive_forwards_degrees(3000)
+
                 swap_current_square()
-                time.sleep_ms(5000)
-                #raise arm to release the cube
+                time.sleep_ms(7000)
                 play_victory_sound()
+                #raise arm to release the cube
                 raise_arm()
-                time.sleep_ms(1000)
+                time.sleep_ms(3000)
                 #drive back a little
-                drive_forwards_degrees(-1000)
+                drive_forwards_degrees(-600)
                 time.sleep_ms(3000)
                 #turn a little so we dont accidentally find the sorted block
                 turn_clockwise_degrees(90)
                 time.sleep_ms(3000)
-                
+
                 current_goal="Find Block"
 
 
@@ -326,7 +323,6 @@ async def main():
             turn_counterclockwise_degrees(40)
             current_goal="Find Block"
         if current_goal=="Seen Block":
-            saw_block_sound()
             #we have spotted a block, so we need to drive towards it.
             drive_to_block()
 
@@ -335,7 +331,6 @@ async def main():
                 should_move_block,degrees_to_face = check_if_block_needs_to_move()
                 #if the block must be pushed into a different square
                 if should_move_block:
-                    #saw_unssorted_block_sound()
                     print("turning to face correct square for block: {0}",degrees_to_face)
                     turn_until_facing_degree(degrees_to_face)
                     current_goal="Push Block"
@@ -355,9 +350,7 @@ async def main():
 
 
         time.sleep_ms(100)
- 
 
 
-    
 
 runloop.run(main())
