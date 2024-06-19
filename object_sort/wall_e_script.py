@@ -79,57 +79,6 @@ def having_color_block(raw_img):
     false_value = np.array([0, 0, 0])
     return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > 250
     
-def having_black_block(raw_img):
-    img_width = raw_img.shape[1]
-    img_heigth = raw_img.shape[0]
-    middle_third_idx = img_width//4
-    last_third_idx = 3*img_width//4
-    
-    # Black left
-    condition1 = np.logical_and(
-        np.logical_and(raw_img[:, :middle_third_idx, 0] > 0, raw_img[:, :middle_third_idx, 0] <= 30),
-        np.logical_and(raw_img[:, :middle_third_idx, 1] >= 1, raw_img[:, :middle_third_idx, 1] <= 30),
-        np.logical_and(raw_img[:, :middle_third_idx, 2] >= 1, raw_img[:, :middle_third_idx, 2] <= 30)
-    )
-    
-    # Black right
-    condition2 = np.logical_and(
-        np.logical_and(raw_img[:, last_third_idx:, 0] > 0, raw_img[:, last_third_idx:, 0] <= 30),
-        np.logical_and(raw_img[:, last_third_idx:, 1] >= 1, raw_img[:, last_third_idx:, 1] <= 30),
-        np.logical_and(raw_img[:, last_third_idx:, 2] >= 1, raw_img[:, last_third_idx:, 2] <= 30)
-    )
-    combined_condition = np.logical_or(condition1, condition2)
-
-    # Ensure true and false values are broadcastable to the shape of raw_img
-    true_value = np.array([255, 255, 255])
-    false_value = np.array([0, 0, 0])
-    #print(np.mean(np.where(combined_condition[..., None], true_value, false_value)))
-    show_image(np.where(combined_condition[..., None], true_value, false_value))
-    return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > BLACK_THR
-    
-def having_brown_block(raw_img):
-    condition1 = np.logical_and(
-        np.logical_and(raw_img[:, :, 0] >= 92, raw_img[:, :, 0] <= 116),
-        np.logical_and(raw_img[:, :, 1] >= 35, raw_img[:, :, 1] <= 67),
-        np.logical_and(raw_img[:, :, 2] >= 1, raw_img[:, :, 2] <= 16)
-    )
-
-    # Ensure true and false values are broadcastable to the shape of raw_img
-    true_value = np.array([255, 255, 255])
-    false_value = np.array([0, 0, 0])
-    return np.mean(np.where(condition1[..., None], true_value, false_value)) > 200
-
-def having_green_block(raw_img):
-    condition1 = np.logical_and(
-    np.logical_and(raw_img[:, :, 0] >= 34, raw_img[:, :, 0] <= 56),
-    np.logical_and(raw_img[:, :, 1] >= 144, raw_img[:, :, 1] <= 182),
-    np.logical_and(raw_img[:, :, 2] >= 3, raw_img[:, :, 2] <= 15)
-    )
-
-    # Ensure true and false values are broadcastable to the shape of raw_img
-    true_value = np.array([255, 255, 255])
-    false_value = np.array([0, 0, 0])
-    return np.mean(np.where(condition1[..., None], true_value, false_value)) > 250
 
 def seeing_blue_plant(raw_img):
     img_width = raw_img.shape[1]
@@ -314,39 +263,7 @@ class AvoidWalls(Behaviour):
             left_motor.run(TURN_SPEED)
             right_motor.run(0)
             
-    def hitting_wall(self, raw_img):
-        # DONE Check color values
-        condition1 = np.logical_and(
-            np.logical_and(raw_img[:, :, 0] >= 123, raw_img[:, :, 0] <= 128),
-            np.logical_and(raw_img[:, :, 1] >=123, raw_img[:, :, 1] <= 128),
-            np.logical_and(raw_img[:, :, 2] >= 145, raw_img[:, :, 2] <= 150)
-        )
-        
-        condition2 = np.logical_and(
-            np.logical_and(raw_img[:, :, 0] >= 142, raw_img[:, :, 0] <= 147),
-            np.logical_and(raw_img[:, :, 1] >= 142, raw_img[:, :, 1] <= 147),
-            np.logical_and(raw_img[:, :, 2] >= 168, raw_img[:, :, 2] <= 173)
-        )
-        
-        condition3 = np.logical_and(
-            np.logical_and(raw_img[:, :, 0] >= 129, raw_img[:, :, 0] <= 131),
-            np.logical_and(raw_img[:, :, 1] >= 129, raw_img[:, :, 1] <= 131),
-            np.logical_and(raw_img[:, :, 2] >= 152, raw_img[:, :, 2] <= 155)
-        )
-        
-        condition4 = np.logical_and(
-            np.logical_and(raw_img[:, :, 0] >= 138, raw_img[:, :, 0] <= 141),
-            np.logical_and(raw_img[:, :, 1] >= 138, raw_img[:, :, 1] <= 141),
-            np.logical_and(raw_img[:, :, 2] >= 162, raw_img[:, :, 2] <= 165)
-        )
-        
-        combined_condition = np.logical_or(np.logical_or(np.logical_or(condition1, condition2), condition3), condition4)
-
-        # Ensure true and false values are broadcastable to the shape of raw_img
-        true_value = np.array([255, 255, 255])
-        false_value = np.array([0, 0, 0])
-        return np.mean(np.where(combined_condition[..., None], true_value, false_value)) > 150
-
+    
 class FindBlock(Behaviour):
     def __str__(self):
         return "Finding Block behaviour"
@@ -400,7 +317,7 @@ class FindingRedPlant(Behaviour):
 
     def run(self):
         left_motor.run(TURN_SPEED/3)
-        right_motor.run(0)
+        right_motor.run(np.random.randint(1, TURN_SPEED, 1)))
 
 class FindingBluePlant(Behaviour):
     def __init__(self, priority):
@@ -489,17 +406,4 @@ while True:
     t += 1
     small_image_sensor._update_image()
     top_image_sensor._update_image()
-    #show_image(small_image_sensor.get_image())
-
-    #print(having_block(small_image_sensor.get_image()))
-    #print(infront_of_red_plant(small_image_sensor.get_image()))
-    #show_image(small_image_sensor.get_image())
-    #having_black_block(small_image_sensor.get_image())
-    #print(finding_red_plant_behaviour.seeing_plant(top_image_sensor.get_image()))
     scheduler.run_step(t)
-    #if t % 100 == 0:
-        #print(avoid_wall_behaviour.hitting_wall(top_image_sensor.get_image()))
-        #print(np.mean(format_image_for_charging(top_image_sensor.get_image())))
-        #show_image(small_image_sensor.get_image())
-        #print(finding_brown_plant_behaviour.having_brown_block(small_image_sensor.get_image()))
-        #print(finding_brown_plant_behaviour.seeing_plant(top_image_sensor.get_image()))

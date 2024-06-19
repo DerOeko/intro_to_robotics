@@ -116,6 +116,7 @@ class Robot_OS(Robot):
 		"""
         response = self.get_string_signal("sonar_sensor")
         sonar_dist = struct.unpack('f', response)[0]
+
         return sonar_dist
 
 
